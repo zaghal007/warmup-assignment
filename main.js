@@ -283,7 +283,38 @@ function setBonus(textFile, driverID, date, newValue) {
 // Returns: number (-1 if driverID not found)
 // ============================================================
 function countBonusPerMonth(textFile, driverID, month) {
-    // TODO: Implement this function
+    // Read the file
+    const fileData = fs.readFileSync(textFile, { encoding: 'utf8' });
+    const lines = fileData.split("\n");
+    
+    // Normalize month to two-digit format
+    const normalizedMonth = month.padStart(2, "0");
+    
+    // Check if driver exists and count bonuses
+    let driverFound = false;
+    let bonusCount = 0;
+    
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === driverID) {
+            driverFound = true;
+            
+            // Extract month from date (yyyy-mm-dd)
+            const date = parts[2];
+            const dateMonth = date.split("-")[1];
+            
+            // Check if this record is in the requested month and has bonus
+            if (dateMonth === normalizedMonth && parts[9].toLowerCase() === "true") {
+                bonusCount++;
+            }
+        }
+    }
+    
+    // Return -1 if driver not found, otherwise return bonus count
+    return driverFound ? bonusCount : -1;
 }
 
 // ============================================================
@@ -294,7 +325,46 @@ function countBonusPerMonth(textFile, driverID, month) {
 // Returns: string formatted as hhh:mm:ss
 // ============================================================
 function getTotalActiveHoursPerMonth(textFile, driverID, month) {
-    // TODO: Implement this function
+    // Read the file
+    const fileData = fs.readFileSync(textFile, { encoding: 'utf8' });
+    const lines = fileData.split("\n");
+    
+    // Normalize month to two-digit format
+    const normalizedMonth = month.toString().padStart(2, "0");
+    
+    // Sum total active hours
+    let totalSeconds = 0;
+    
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === driverID) {
+            // Extract month from date (yyyy-mm-dd)
+            const date = parts[2];
+            const dateMonth = date.split("-")[1];
+            
+            // Check if this record is in the requested month
+            if (dateMonth === normalizedMonth) {
+                // Parse activeTime (h:mm:ss format)
+                const activeTime = parts[7];
+                const timeParts = activeTime.split(":");
+                const hours = parseInt(timeParts[0]);
+                const minutes = parseInt(timeParts[1]);
+                const seconds = parseInt(timeParts[2]);
+                
+                totalSeconds += hours * 3600 + minutes * 60 + seconds;
+            }
+        }
+    }
+    
+    // Convert back to hhh:mm:ss format
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
 // ============================================================
@@ -307,7 +377,54 @@ function getTotalActiveHoursPerMonth(textFile, driverID, month) {
 // Returns: string formatted as hhh:mm:ss
 // ============================================================
 function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month) {
-    // TODO: Implement this function
+    // Read the shifts file
+    const shiftData = fs.readFileSync(textFile, { encoding: 'utf8' });
+    const shiftLines = shiftData.split("\n");
+    
+    // Normalize month to two-digit format
+    const normalizedMonth = month.toString().padStart(2, "0");
+    
+    // Calculate total required hours based on shifts worked
+    let totalSeconds = 0;
+    
+    for (let i = 1; i < shiftLines.length; i++) {
+        const line = shiftLines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === driverID) {
+            // Extract month and day from date
+            const date = parts[2];
+            const dateMonth = date.split("-")[1];
+            const dateDay = parseInt(date.split("-")[2]);
+            
+            // Check if this record is in the requested month
+            if (dateMonth === normalizedMonth) {
+                let daySeconds;
+                
+                // Determine quota based on Eid period (Apr 10-30, 2025)
+                if (dateMonth === "04" && dateDay >= 10 && dateDay <= 30) {
+                    // During Eid: 6 hours
+                    daySeconds = 6 * 3600;
+                } else {
+                    // Normal day: 8 hours 24 minutes
+                    daySeconds = 8 * 3600 + 24 * 60;
+                }
+                
+                totalSeconds += daySeconds;
+            }
+        }
+    }
+    
+    // Subtract bonus hours (2 hours per bonus)
+    totalSeconds -= bonusCount * 2 * 3600;
+    
+    // Convert to hhh:mm:ss format
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
 // ============================================================
