@@ -61,7 +61,66 @@ function getShiftDuration(startTime, endTime) {
 // Returns: string formatted as h:mm:ss
 // ============================================================
 function getIdleTime(startTime, endTime) {
-    // TODO: Implement this function
+    // Parse start time
+    const startMatch = startTime.match(/(\d{1,2}):(\d{2}):(\d{2})\s(am|pm)/i);
+    let startHours = parseInt(startMatch[1]);
+    const startMinutes = parseInt(startMatch[2]);
+    const startSeconds = parseInt(startMatch[3]);
+    const startPeriod = startMatch[4].toLowerCase();
+
+    // Parse end time
+    const endMatch = endTime.match(/(\d{1,2}):(\d{2}):(\d{2})\s(am|pm)/i);
+    let endHours = parseInt(endMatch[1]);
+    const endMinutes = parseInt(endMatch[2]);
+    const endSeconds = parseInt(endMatch[3]);
+    const endPeriod = endMatch[4].toLowerCase();
+
+    // Convert to 24-hour format
+    if (startPeriod === "am" && startHours === 12) {
+        startHours = 0;
+    } else if (startPeriod === "pm" && startHours !== 12) {
+        startHours += 12;
+    }
+
+    if (endPeriod === "am" && endHours === 12) {
+        endHours = 0;
+    } else if (endPeriod === "pm" && endHours !== 12) {
+        endHours += 12;
+    }
+
+    // Convert to total seconds
+    let startTotalSeconds = startHours * 3600 + startMinutes * 60 + startSeconds;
+    let endTotalSeconds = endHours * 3600 + endMinutes * 60 + endSeconds;
+
+    // Handle overnight shifts
+    if (endTotalSeconds < startTotalSeconds) {
+        endTotalSeconds += 24 * 3600;
+    }
+
+    // Business hours are 8 AM (08:00:00) to 10 PM (22:00:00)
+    const businessStart = 8 * 3600;
+    const businessEnd = 22 * 3600;
+
+    let idleSeconds = 0;
+
+    // Check if start time is before business start
+    if (startTotalSeconds < businessStart) {
+        const idleEnd = Math.min(endTotalSeconds, businessStart);
+        idleSeconds += idleEnd - startTotalSeconds;
+    }
+
+    // Check if end time is after business end
+    if (endTotalSeconds > businessEnd) {
+        const idleStart = Math.max(startTotalSeconds, businessEnd);
+        idleSeconds += endTotalSeconds - idleStart;
+    }
+
+    // Convert back to h:mm:ss format
+    const hours = Math.floor(idleSeconds / 3600);
+    const minutes = Math.floor((idleSeconds % 3600) / 60);
+    const seconds = idleSeconds % 60;
+
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 // ============================================================
@@ -71,7 +130,31 @@ function getIdleTime(startTime, endTime) {
 // Returns: string formatted as h:mm:ss
 // ============================================================
 function getActiveTime(shiftDuration, idleTime) {
-    // TODO: Implement this function
+    // Parse shift duration
+    const durationParts = shiftDuration.split(":");
+    const durationHours = parseInt(durationParts[0]);
+    const durationMinutes = parseInt(durationParts[1]);
+    const durationSeconds = parseInt(durationParts[2]);
+    
+    // Parse idle time
+    const idleParts = idleTime.split(":");
+    const idleHours = parseInt(idleParts[0]);
+    const idleMinutes = parseInt(idleParts[1]);
+    const idleSeconds = parseInt(idleParts[2]);
+    
+    // Convert to total seconds
+    let durationTotalSeconds = durationHours * 3600 + durationMinutes * 60 + durationSeconds;
+    let idleTotalSeconds = idleHours * 3600 + idleMinutes * 60 + idleSeconds;
+    
+    // Calculate active seconds
+    const activeSeconds = durationTotalSeconds - idleTotalSeconds;
+    
+    // Convert back to h:mm:ss format
+    const hours = Math.floor(activeSeconds / 3600);
+    const minutes = Math.floor((activeSeconds % 3600) / 60);
+    const seconds = activeSeconds % 60;
+    
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 // ============================================================
