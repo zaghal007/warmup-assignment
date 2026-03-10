@@ -164,7 +164,32 @@ function getActiveTime(shiftDuration, idleTime) {
 // Returns: boolean
 // ============================================================
 function metQuota(date, activeTime) {
-    // TODO: Implement this function
+    // Parse the date
+    const dateObj = new Date(date);
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+
+    // Parse active time
+    const timeParts = activeTime.split(":");
+    const hours = parseInt(timeParts[0]);
+    const minutes = parseInt(timeParts[1]);
+    const seconds = parseInt(timeParts[2]);
+
+    // Convert active time to seconds
+    const activeSeconds = hours * 3600 + minutes * 60 + seconds;
+
+    // Determine the quota based on Eid period
+    // Eid period: April 10-30, 2025
+    let quotaSeconds;
+    if (month === 4 && day >= 10 && day <= 30) {
+        // During Eid: 6 hours
+        quotaSeconds = 6 * 3600;
+    } else {
+        // Normal day: 8 hours 24 minutes
+        quotaSeconds = 8 * 3600 + 24 * 60;
+    }
+
+    return activeSeconds >= quotaSeconds;
 }
 
 // ============================================================
@@ -174,7 +199,49 @@ function metQuota(date, activeTime) {
 // Returns: object with 10 properties or empty object {}
 // ============================================================
 function addShiftRecord(textFile, shiftObj) {
-    // TODO: Implement this function
+    // Read the file
+    const fileData = fs.readFileSync(textFile, { encoding: 'utf8' });
+    const lines = fileData.split("\n");
+    
+    // Check if record already exists
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === shiftObj.driverID && parts[2] === shiftObj.date) {
+            // Record already exists
+            return {};
+        }
+    }
+    
+    // Calculate required fields
+    const shiftDuration = getShiftDuration(shiftObj.startTime, shiftObj.endTime);
+    const idleTime = getIdleTime(shiftObj.startTime, shiftObj.endTime);
+    const activeTime = getActiveTime(shiftDuration, idleTime);
+    const quotaMet = metQuota(shiftObj.date, activeTime);
+    
+    // Create the record object
+    const record = {
+        driverID: shiftObj.driverID,
+        driverName: shiftObj.driverName,
+        date: shiftObj.date,
+        startTime: shiftObj.startTime,
+        endTime: shiftObj.endTime,
+        shiftDuration: shiftDuration,
+        idleTime: idleTime,
+        activeTime: activeTime,
+        metQuota: quotaMet,
+        hasBonus: false
+    };
+    
+    // Prepare the CSV line
+    const csvLine = `${record.driverID},${record.driverName},${record.date},${record.startTime},${record.endTime},${record.shiftDuration},${record.idleTime},${record.activeTime},${record.metQuota},${record.hasBonus}`;
+    
+    // Append to file
+    fs.appendFileSync(textFile, "\n" + csvLine);
+    
+    return record;
 }
 
 // ============================================================
@@ -186,7 +253,26 @@ function addShiftRecord(textFile, shiftObj) {
 // Returns: nothing (void)
 // ============================================================
 function setBonus(textFile, driverID, date, newValue) {
-    // TODO: Implement this function
+    // Read the file
+    const fileData = fs.readFileSync(textFile, { encoding: 'utf8' });
+    const lines = fileData.split("\n");
+    
+    // Find and update the matching record
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === driverID && parts[2] === date) {
+            // Update the HasBonus field (last column)
+            parts[9] = newValue.toString();
+            lines[i] = parts.join(",");
+            break;
+        }
+    }
+    
+    // Write the file back
+    fs.writeFileSync(textFile, lines.join("\n"));
 }
 
 // ============================================================
@@ -233,7 +319,59 @@ function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, mont
 // Returns: integer (net pay)
 // ============================================================
 function getNetPay(driverID, actualHours, requiredHours, rateFile) {
-    // TODO: Implement this function
+    // Read the driver rates file
+    const fileData = fs.readFileSync(rateFile, { encoding: 'utf8' });
+    const lines = fileData.split("\n");
+    
+    // Find the driver's record
+    let driverBasePay = 0;
+    let driverTier = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = line.split(",");
+        if (parts[0] === driverID) {
+            driverBasePay = parseInt(parts[2]);
+            driverTier = parseInt(parts[3]);
+            break;
+        }
+    }
+    
+    // Parse actual and required hours to seconds
+    const actualParts = actualHours.split(":");
+    const actualSeconds = parseInt(actualParts[0]) * 3600 + parseInt(actualParts[1]) * 60 + parseInt(actualParts[2]);
+    
+    const requiredParts = requiredHours.split(":");
+    const requiredSeconds = parseInt(requiredParts[0]) * 3600 + parseInt(requiredParts[1]) * 60 + parseInt(requiredParts[2]);
+    
+    // Calculate missing hours
+    let missingHours = (requiredSeconds - actualSeconds) / 3600;
+    if (missingHours < 0) {
+        missingHours = 0; // No deduction if actual >= required
+    }
+    
+    // Determine tier allowance
+    let tierAllowance = 0;
+    if (driverTier === 1) {
+        tierAllowance = 50;
+    } else if (driverTier === 2) {
+        tierAllowance = 20;
+    } else if (driverTier === 3) {
+        tierAllowance = 10;
+    } else if (driverTier === 4) {
+        tierAllowance = 3;
+    }
+    
+    // Calculate net pay
+    let netPay = driverBasePay;
+    if (missingHours > tierAllowance) {
+        const deductionRatePerHour = Math.floor(driverBasePay / 185);
+        netPay = driverBasePay - deductionRatePerHour;
+    }
+    
+    return netPay;
 }
 
 module.exports = {
