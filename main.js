@@ -7,7 +7,51 @@ const fs = require("fs");
 // Returns: string formatted as h:mm:ss
 // ============================================================
 function getShiftDuration(startTime, endTime) {
-    // TODO: Implement this function
+    // Parse start time
+    const startMatch = startTime.match(/(\d{1,2}):(\d{2}):(\d{2})\s(am|pm)/i);
+    let startHours = parseInt(startMatch[1]);
+    const startMinutes = parseInt(startMatch[2]);
+    const startSeconds = parseInt(startMatch[3]);
+    const startPeriod = startMatch[4].toLowerCase();
+
+    // Parse end time
+    const endMatch = endTime.match(/(\d{1,2}):(\d{2}):(\d{2})\s(am|pm)/i);
+    let endHours = parseInt(endMatch[1]);
+    const endMinutes = parseInt(endMatch[2]);
+    const endSeconds = parseInt(endMatch[3]);
+    const endPeriod = endMatch[4].toLowerCase();
+
+    // Convert to 24-hour format
+    if (startPeriod === "am" && startHours === 12) {
+        startHours = 0;
+    } else if (startPeriod === "pm" && startHours !== 12) {
+        startHours += 12;
+    }
+
+    if (endPeriod === "am" && endHours === 12) {
+        endHours = 0;
+    } else if (endPeriod === "pm" && endHours !== 12) {
+        endHours += 12;
+    }
+
+    // Convert to total seconds
+    let startTotalSeconds = startHours * 3600 + startMinutes * 60 + startSeconds;
+    let endTotalSeconds = endHours * 3600 + endMinutes * 60 + endSeconds;
+
+    // Handle overnight shifts
+    if (endTotalSeconds < startTotalSeconds) {
+        endTotalSeconds += 24 * 3600;
+    }
+
+    // Calculate duration
+    const durationSeconds = endTotalSeconds - startTotalSeconds;
+
+    // Convert back to h:mm:ss format
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 // ============================================================
