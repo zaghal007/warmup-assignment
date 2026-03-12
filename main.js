@@ -34,10 +34,12 @@ function getShiftDuration(startTime, endTime) {
         endHours += 12;
     }
 
+    
     // Convert to total seconds
     let startTotalSeconds = startHours * 3600 + startMinutes * 60 + startSeconds;
     let endTotalSeconds = endHours * 3600 + endMinutes * 60 + endSeconds;
 
+  
     // Handle overnight shifts
     if (endTotalSeconds < startTotalSeconds) {
         endTotalSeconds += 24 * 3600;
@@ -68,6 +70,7 @@ function getIdleTime(startTime, endTime) {
     const startSeconds = parseInt(startMatch[3]);
     const startPeriod = startMatch[4].toLowerCase();
 
+   
     // Parse end time
     const endMatch = endTime.match(/(\d{1,2}):(\d{2}):(\d{2})\s(am|pm)/i);
     let endHours = parseInt(endMatch[1]);
@@ -75,6 +78,7 @@ function getIdleTime(startTime, endTime) {
     const endSeconds = parseInt(endMatch[3]);
     const endPeriod = endMatch[4].toLowerCase();
 
+    
     // Convert to 24-hour format
     if (startPeriod === "am" && startHours === 12) {
         startHours = 0;
@@ -365,7 +369,7 @@ function getTotalActiveHoursPerMonth(textFile, driverID, month) {
     const secs = totalSeconds % 60;
     
     return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-}
+} 
 
 // ============================================================
 // Function 9: getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month)
@@ -376,6 +380,7 @@ function getTotalActiveHoursPerMonth(textFile, driverID, month) {
 // month: (typeof number)
 // Returns: string formatted as hhh:mm:ss
 // ============================================================
+
 function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month) {
     // Read the shifts file
     const shiftData = fs.readFileSync(textFile, { encoding: 'utf8' });
